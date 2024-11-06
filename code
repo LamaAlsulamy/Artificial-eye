@@ -1,0 +1,233 @@
+function image_processing_gui
+   % Create the main GUI window with larger dimensions
+   f = figure('Name', 'Product Quality Inspection', 'NumberTitle', 'off', 'Position', [100, 100, 1000, 700], 'Color', [0.95, 0.95, 0.95]);
+
+   % Add a button to load an image (Larger button)
+   uicontrol('Style', 'pushbutton', 'String', 'Load Image', ...
+   'Position', [420, 620, 160, 50], 'FontSize', 15, 'Callback', @load_image, 'BackgroundColor', [0.68, 0.85, 0.9]);
+
+   % Add a dropdown menu to select noise type
+   uicontrol('Style', 'text', 'String', 'Select Noise Type:', ...
+   'Position', [170, 565, 160, 30], 'FontSize', 15, 'BackgroundColor', [0.95, 0.95, 0.95]);
+
+   noiseTypeMenu = uicontrol('Style', 'popupmenu', 'String', {'Salt & Pepper', 'Gaussian'}, ...
+   'Position', [170, 530, 160, 30], 'FontSize', 15);
+
+   % Add a button to add noise (Larger button)
+   uicontrol('Style', 'pushbutton', 'String', 'Add Noise', ...
+   'Position', [170, 480, 160, 50], 'FontSize', 15, 'Callback', @add_noise, 'BackgroundColor', [0.7, 0.7, 0.9]);
+
+   % Add a dropdown menu to select noise removal method
+   uicontrol('Style', 'text', 'String', 'Select Noise Removal:', ...
+   'Position', [420, 565, 180, 30], 'FontSize', 15, 'BackgroundColor', [0.95, 0.95, 0.95]);
+
+   noiseRemovalMenu = uicontrol('Style', 'popupmenu', 'String', {'Gaussian Filter', 'Median Filter'}, ...
+   'Position', [420, 530, 160, 30], 'FontSize', 15);
+
+   % Add a button for noise removal (Larger button)
+   uicontrol('Style', 'pushbutton', 'String', 'Remove Noise', ...
+   'Position', [420, 480, 160, 50], 'FontSize', 15, 'Callback', @remove_noise, 'BackgroundColor', [0.7, 0.7, 0.9]);
+
+   % Add a button for edge detection (Larger button)
+   uicontrol('Style', 'pushbutton', 'String', 'Edge Detection', ...
+   'Position', [670, 480, 160, 50], 'FontSize', 15, 'Callback', @edge_detection, 'BackgroundColor', [0.7, 0.7, 0.9]);
+   
+   % Add a note above the cup detection button
+   uicontrol('Style', 'text', 'String', 'Note: If you want to use this feature, ensure the camera is vertical to the product.This feature find only circular objects: cups', ...
+    'Position', [670, 680, 300, 50], 'FontSize', 12, 'FontWeight', 'bold', 'BackgroundColor', [0.95, 0.95, 0.95], 'HorizontalAlignment', 'left');
+
+   % Add a button for cup detection (Larger button)
+   uicontrol('Style', 'pushbutton', 'String', 'Find cups', ...
+    'Position', [670, 620, 160, 50], 'FontSize', 15, 'Callback', @find_cups, 'BackgroundColor', [0.7, 0.9, 0.7]);
+  
+   % Add an axis to display images
+   hAxes = axes('Units', 'pixels', 'Position', [150, 50, 700, 400], 'Box', 'on');
+
+   % Initialize variables
+   img = []; % Image storage variable
+   noisy_img = []; % Noisy image variable
+   color_img = []; % Variable to hold color image for cup detection
+   is_noisy = false; % Variable to check noise presence
+
+   %% Function to load an image
+   function load_image(~, ~)
+    [file, path] = uigetfile({'*.jpg;*.png;*.bmp', 'Image Files (*.jpg, *.png, *.bmp)'});
+    if isequal(file, 0)
+        return;
+    end
+    
+    img = imread(fullfile(path, file));
+    color_img = img; % Store the original color image for cup detection
+    
+    % Convert to grayscale if needed
+    if size(img, 3) == 3
+        img = rgb2gray(img);
+    end
+    
+    % Clear the axes before displaying the new image
+    cla(hAxes);
+    
+    % Get the size of the new image
+    [imgHeight, imgWidth] = size(img);
+    
+    % Calculate the aspect ratio for resizing
+    aspectRatio = imgWidth / imgHeight;
+    
+    % Set the axes limits according to the new image size
+    set(hAxes, 'XLim', [0 imgWidth], 'YLim', [0 imgHeight]);
+    
+    % Display the loaded image
+    imshow(img, 'Parent', hAxes); % Display the loaded image
+    title(hAxes, 'Original Image', 'FontSize', 14, 'FontWeight', 'bold');
+    sgtitle('Product Quality Inspection', 'FontSize', 16, 'FontWeight', 'bold');
+    
+    % Display the histogram of the original image
+    figure('Name', 'Image Histogram', 'NumberTitle', 'off');
+    imhist(img);
+    title('Histogram for the original image', 'FontSize', 14, 'FontWeight', 'bold');
+   end
+
+   %% Function to add noise
+    function add_noise(~, ~)
+        if isempty(img)
+            msgbox('Please load an image first.', 'Error', 'error');
+            return;
+        end
+        
+        % Get the selected noise type from the dropdown menu
+        noiseType = get(noiseTypeMenu, 'Value');
+        
+        % Apply the selected noise type
+        if noiseType == 1  % Salt & Pepper Noise
+            noisy_img = imnoise(img, 'salt & pepper', 0.02); % Add salt and pepper noise
+        elseif noiseType == 2  % Gaussian Noise
+            noisy_img = imnoise(img, 'gaussian', 0, 0.01); % Add Gaussian noise
+        end
+        
+        is_noisy = true;
+        imshow(noisy_img, 'Parent', hAxes); % Display the noisy image
+        title(hAxes, 'Image with Added Noise', 'FontSize', 14, 'FontWeight', 'bold');
+        sgtitle('Noise Addition and Histogram Comparison', 'FontSize', 16, 'FontWeight', 'bold');
+
+        % Display the histograms before and after adding noise
+        figure('Name', 'Histograms - Before & After Adding Noise', 'NumberTitle', 'off');
+        subplot(1, 2, 1);
+        imhist(img);
+        title('Histogram Before Adding Noise', 'FontSize', 12, 'FontWeight', 'bold');
+        
+        subplot(1, 2, 2);
+        imhist(noisy_img);
+        title('Histogram After Adding Noise', 'FontSize', 12, 'FontWeight', 'bold');
+        
+        % Add a main title for the histograms
+        sgtitle('Histogram Comparison - Noise Addition', 'FontSize', 14, 'FontWeight', 'bold');
+    end
+
+   %% Noise removal function
+    function remove_noise(~, ~)
+        if isempty(img)
+            msgbox('Please load an image first.', 'Error', 'error');
+            return;
+        end
+        
+        % Select the image to process (noisy or original)
+        if is_noisy
+            img_to_filter = noisy_img;
+        else
+            img_to_filter = img;
+        end
+     
+        sgtitle('Removing Noise and Histogram Comparison', 'FontSize', 16, 'FontWeight', 'bold'); 
+
+        % Display the histograms before removing noise
+        figure('Name', 'Histograms - Before & After Noise Removal', 'NumberTitle', 'off');
+        subplot(1, 2, 1);
+        imhist(img_to_filter);
+        title('Histogram Before Noise Removal', 'FontSize', 12, 'FontWeight', 'bold');
+
+        % Get the selected noise removal type from the dropdown menu
+        noiseRemovalType = get(noiseRemovalMenu, 'Value');
+        
+        % Apply the selected noise removal method
+        if noiseRemovalType == 1  % Gaussian Filter
+            img_to_filter = imgaussfilt(img_to_filter, 1);
+        elseif noiseRemovalType == 2  % Median Filter
+            img_to_filter = medfilt2(img_to_filter);
+        end
+        
+        is_noisy = false;
+        imshow(img_to_filter, 'Parent', hAxes); % Display the noise-removed image
+        title(hAxes, 'Noise Removed', 'FontSize', 14, 'FontWeight', 'bold');
+        
+
+        % Display the histogram after removing noise
+        subplot(1, 2, 2);
+        imhist(img_to_filter);
+        title('Histogram After Noise Removal', 'FontSize', 12, 'FontWeight', 'bold');
+        
+        % Add a main title for the histograms
+        sgtitle('Histogram Comparison - Noise Removal', 'FontSize', 14, 'FontWeight', 'bold');
+    end
+
+%% Function to perform edge detection
+    function edge_detection(~, ~)
+        if isempty(img)
+            msgbox('Please load an image first.', 'Error', 'error');
+            return;
+        end
+       
+        % Select the image to process (noisy or original)
+        if is_noisy
+            filtered_img = noisy_img;
+        else
+            filtered_img = img;
+        end
+
+        % Apply contrast enhancement
+        filtered_img = histeq(filtered_img);
+
+        % Apply Canny edge detection with fine-tuned thresholds
+        edges = edge(filtered_img, 'Canny', [0.04, 0.15]);
+
+        % Apply dilation to make edges thicker and clearer
+        se = strel('disk', 1);
+        dilated_edges = imdilate(edges, se);
+
+        % Display the edges
+        imshow(dilated_edges, 'Parent', hAxes);
+        title(hAxes, 'Edge Detection with Dilation', 'FontSize', 14, 'FontWeight', 'bold');
+        sgtitle('Edge Detection', 'FontSize', 16, 'FontWeight', 'bold');
+    end
+%% Function to find cups based on color and shape
+   function find_cups(~, ~)
+    if isempty(color_img)
+        msgbox('Please load a color image first.', 'Error', 'error');
+        return;
+    end
+
+    sgtitle('Find Cups', 'FontSize', 16, 'FontWeight', 'bold');
+    % Convert the loaded image to grayscale
+    gray_img = rgb2gray(color_img);
+
+    % Apply edge detection (Canny method)
+    edges = edge(gray_img, 'Canny');
+
+    % Detect circles (possible cups) in the image using imfindcircles
+    [centers, radii] = imfindcircles(edges, [50, 150], 'ObjectPolarity', 'bright', 'Sensitivity', 0.92);
+
+    % Display the original image
+    imshow(color_img, 'Parent', hAxes);
+    hold on;
+
+    % Highlight the detected cups
+    viscircles(centers, radii, 'EdgeColor', 'b');
+
+    % Check if the number of Found cups is even
+    numCups = numel(radii);
+    if mod(numCups, 2) == 0
+        title(hAxes, sprintf('Found %d Cups', floor(numel(radii) / 2)), 'FontSize', 14, 'FontWeight', 'bold');
+    else
+        title(hAxes, 'Found Cups', 'FontSize', 14, 'FontWeight', 'bold');
+    end
+  end
+end
